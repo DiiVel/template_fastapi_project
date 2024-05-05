@@ -19,4 +19,3 @@ class UserSchemaAdd(BaseModel):
     project_id: int
     env: str
     domain: str
-    locktime: datetime
