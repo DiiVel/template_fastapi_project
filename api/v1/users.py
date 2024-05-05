@@ -1,6 +1,11 @@
-from fastapi import APIRouter, Depends
+import datetime
+from http import HTTPStatus
+from http.client import HTTPException
 
-from schemas.users import UserSchemaAdd
+from fastapi import APIRouter, Depends
+from fastapi.responses import Response
+
+from schemas.users import UserSchemaAdd, UserSchema
 from services.users import UsersService
 from core.dependencies import users_service
 
@@ -16,35 +21,66 @@ async def ping():
 
 @router.post("/")
 async def create_user(
-        user: UserSchemaAdd,
-        users_service: UsersService = Depends(users_service),
+    user: UserSchemaAdd,
+    users_service: UsersService = Depends(users_service),
 ):
     user_id = await users_service.add_post(user)
-    return {"post_id": user_id}
+    return {"user_id": user_id}
 
 
 @router.get("/")
-async def get_posts(
-        users_service: UsersService = Depends(users_service),
+async def get_users(
+    users_service: UsersService = Depends(users_service),
 ):
     users = await users_service.get_posts()
     return users
 
 
-@router.get("/{user_id:int}")
-async def get_post(
-        user_id: int,
-        users_service: UsersService = Depends(users_service),
+@router.patch("/release_lock/{user_id:int}")
+async def release_lock(
+    user_id: int,
+    users_service: UsersService = Depends(users_service),
 ):
-    user = await users_service.get_post(user_id)
-    return user
+    """
+    Release lock for user
+    :param user_id: need to be sent in order to acquire lock.
+    :param users_service: object that holds the users service and helps to use db
+    :return: 200 OK if successful
+    """
+    user = await users_service.get_user(user_id)
 
+    if user is None:
+        raise HTTPException(status_code=400, detail="There is no such user.")
+    if user.locktime is None:
+        raise HTTPException(status_code=400, detail="User is already unlocked.")
 
-@router.patch("/release_lock")
-async def release_lock():
-    return {"message": "release lock"}
+    user.locktime = None
 
+    await users_service.update_user(user)
 
-@router.post("/acquire_lock")
-async def acquire_lock():
     return {"message": "acquire_lock"}
+
+
+@router.post("/acquire_lock/{user_id:int}")
+async def acquire_lock(
+    user_id: int,
+    users_service: UsersService = Depends(users_service),
+):
+    """
+    Acquire the locktime of a user.
+    :param user_id: need to be sent in order to acquire lock.
+    :param users_service: object that holds the users service and helps to use db
+    :return:
+    """
+    user = await users_service.get_user(user_id)
+
+    if user is None:
+        raise HTTPException(status_code=400, detail="There is no such user.")
+    if user.locktime is not None:
+        raise HTTPException(status_code=400, detail="User is already locked.")
+
+    user.locktime = datetime.datetime.utcnow()
+
+    await users_service.update_user(user)
+
+    return Response(status_code=HTTPStatus.OK, content={"message": "Lock has been acquired successfully."})

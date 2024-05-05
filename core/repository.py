@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from typing import Dict, Any, List
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 
 from core.database import async_session_maker
 from core import exceptions
@@ -8,11 +9,11 @@ from core import exceptions
 
 class AbstractRepository(ABC):
     @abstractmethod
-    async def add_one():
+    async def add_one(self, data):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_all():
+    async def find_all(self) -> List[Dict[str, Any]]:
         raise NotImplementedError
 
 
@@ -41,3 +42,9 @@ class SQLAlchemyRepository(AbstractRepository):
             if not res:
                 raise exceptions.NOT_FOUND
             return res[0]
+
+    async def update(self, id: int, data: dict) -> None:
+        async with async_session_maker() as session:
+            stmt = update(self.model).where(self.model.id == id).values(**data)
+            await session.execute(stmt)
+            await session.commit()

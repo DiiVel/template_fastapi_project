@@ -14,7 +14,7 @@ class User(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     env = Column(String, nullable=False)
     domain = Column(String, nullable=False)
-    locktime = Column(TIMESTAMP, default=datetime.datetime.utcnow)
+    locktime = Column(TIMESTAMP, default=None)
 
     def to_read_model(self) -> UserSchema:
         return UserSchema(

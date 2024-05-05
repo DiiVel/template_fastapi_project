@@ -1,4 +1,4 @@
-import datetime
+from pydantic.types import datetime
 from pydantic import BaseModel
 
 
@@ -19,3 +19,4 @@ class UserSchemaAdd(BaseModel):
     project_id: int
     env: str
     domain: str
+    locktime: datetime
